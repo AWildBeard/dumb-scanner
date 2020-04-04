@@ -1,0 +1,10 @@
+*
+
+!**/*.go
+!**/*.cs
+!**/*.md
+!*/
+!.gitignore
+!**/Makefile
+!go.mod
+!go.sum
