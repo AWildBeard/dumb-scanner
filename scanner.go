@@ -18,8 +18,10 @@ type report struct {
 }
 
 type scanner struct {
-	ipRange string
-	nmapCmd string
+	ipRange   string
+	fileName  string
+	nmapCmd   string
+	smartMode bool
 }
 
 type Host struct {
@@ -45,7 +47,7 @@ func (scnr *scanner) scanEmit(reportUpdates chan report) {
 			os.Exit(1)
 		}
 
-		if data, err := ioutil.ReadFile(fmt.Sprintf("%s.xml", scnr.ipRange)); err == nil {
+		if data, err := ioutil.ReadFile(fmt.Sprintf("%s.xml", scnr.fileName)); err == nil {
 			if output, err := nmap.Parse(data); err == nil {
 				report := report{}
 				report.ipRange = scnr.ipRange
@@ -76,12 +78,12 @@ func (scnr *scanner) scanEmit(reportUpdates chan report) {
 							newPort.DownTime += time.Since(newPort.downPoint)
 						}
 
-						if prt.State.State != "open" || newPort.ServiceName != prt.Service.Name {
+						if prt.State.State != "open" || (newPort.ServiceName != prt.Service.Name && !scnr.smartMode) {
 							newPort.downPoint = time.Now()
-							newPort.State = FAILING
+							newPort.State = prt.State.State
 						} else { // port is now open, record downtime if there was any
 							newPort.downPoint = time.Time{}
-							newPort.State = SUCCEDING
+							newPort.State = prt.State.State
 
 							if report.openPorts[newPort.Port] == nil {
 								report.openPorts[newPort.Port] = make([]*Host, 0)
@@ -95,7 +97,7 @@ func (scnr *scanner) scanEmit(reportUpdates chan report) {
 
 				reportUpdates <- report
 				if outputData, err := json.MarshalIndent(storedHosts, "", "\t"); err == nil {
-					ioutil.WriteFile(fmt.Sprintf("%s.json", scnr.ipRange), outputData, 0660)
+					ioutil.WriteFile(fmt.Sprintf("%s.json", scnr.fileName), outputData, 0660)
 				}
 			} else {
 				fmt.Printf("Failed to parse file: %v\n", err)
